@@ -1,0 +1,181 @@
+
+# Optional VM tweaks:
+# config.vm.provider "virtualbox" do |v|
+#   v.memory = 2048
+#   v.cpus = 1   
+#   # Interval in milliseconds at which to synchronize the time with the host. (24hrs)
+#   v.customize [ "guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-interval", 86400000 ]  
+#   # Treshold in milliseconds when re-syncing completely instead doing small adjustments (2 years)
+#   v.customize [ "guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/--timesync-set-treshold", 63072000000 ]
+#   # The minimum absolute drift value to make adjustments for (2 years)
+#   v.customize [ "guestproperty", "set", :id, "/VirtualBox/GuestAdd/VBoxService/ --timesync-min-adjust", 63072000000 ]
+# end
+
+
+# Set up a private Network when using NFS shares.
+# See: https://www.vagrantup.com/docs/networking/private_network.html
+#config.vm.network :private_network, id: "vvv_primary", ip: "192.168.50.4"
+# can also use: 
+# , type: "dhcp:"
+
+# More on NFS Vagrant/VirtualBox shares, see:
+# https://www.vagrantup.com/docs/synced-folders/nfs.html
+
+# More on Fedora NFS shares, see:
+# https://developer.fedoraproject.org/tools/vagrant/vagrant-nfs.html
+
+# However, UDP may be required by Vagrant && VVV
+# See: https://robertbasic.com/blog/enable-udp-for-nfs-on-fedora/
+
+
+# =============================
+#  SKYVERGE COMMERCIAL PLUGINS
+# =============================
+sv_wc_plugins = [
+  'woocommerce-address-validation',
+  'woocommerce-admin-custom-order-fields',
+  'woocommerce-authorize-net-reporting',
+  'woocommerce-avatax',
+  'woocommerce-cart-notices', 
+  'woocommerce-checkout-add-ons',
+  'woocommerce-constant-contact',
+  'woocommerce-cost-of-goods',
+  'woocommerce-customer-order-csv-export',
+  'woocommerce-customer-order-csv-import',
+  'woocommerce-customer-order-xml-export-suite',
+  'woocommerce-freshbooks',
+  'woocommerce-gateway-authorize-net-aim',
+  'woocommerce-gateway-authorize-net-cim',
+  'woocommerce-gateway-authorize-net-sim',
+  'woocommerce-gateway-beanstream',
+  'woocommerce-gateway-chase-paymentech',
+  'woocommerce-gateway-checkout-fi',
+  'woocommerce-gateway-cybersource',
+  'woocommerce-gateway-cybersource-sop',
+  'woocommerce-gateway-elavon',
+  'woocommerce-gateway-firstdata',
+  'woocommerce-gateway-intuit-qbms',
+  'woocommerce-gateway-mollie',
+  'woocommerce-gateway-moneris',
+  'woocommerce-gateway-netbilling',
+  'woocommerce-gateway-ogone',
+  'woocommerce-gateway-paytrail',
+  'woocommerce-gateway-realex',
+  'woocommerce-gateway-realex-redirect',
+  'woocommerce-gateway-usa-epay',
+  'woocommerce-google-analytics-pro',
+  'woocommerce-kiss-metrics',
+  'woocommerce-measurement-price-calculator',
+  'woocommerce-mixpanel',
+  'woocommerce-nested-category-layout',
+  'woocommerce-order-status-control',
+  'woocommerce-order-status-manager',
+  'woocommerce-pdf-product-vouchers',
+  'woocommerce-pip',
+  'woocommerce-product-documents',
+  'woocommerce-product-retailers',
+  'woocommerce-product-reviews-pro',
+  'woocommerce-sequential-order-numbers-pro',
+  'woocommerce-shipping-local-pickup-plus',
+  'woocommerce-shipwire',
+  'woocommerce-social-login',
+  'woocommerce-stamps-com',
+  'woocommerce-tab-manager',
+  'woocommerce-twilio-sms-notifications',
+  'woocommerce-url-coupons'
+]
+sv_wc_plugins.each do |plugin_name|
+  plugin_path = File.join('/projects/wp/skyverge/wc-plugins/', plugin_name)
+  dest_path   = File.join('/srv/www/skyverge/public_html/wp-content/plugins/', plugin_name)
+  config.vm.synced_folder plugin_path, dest_path, type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+end
+
+# ====================================
+#  WOOCOMMERCE.COM COMMERCIAL PLUGINS
+# ====================================
+wt_plugins = [
+  'sensei',                                   # Sensei team
+  'woocommerce',                              # Synced fork
+  'woocommerce-accommodation-bookings',       # WooCommerce
+  'woocommerce-additional-fees',              # WooCommerce
+  'woocommerce-advanced-shipping-packages',   # Jeroen Sormani
+  'woocommerce-bookings',                     # WooCommerce
+  'woocommerce-chained-products',             # WooCommerce
+  'woocommerce-checkout-field-editor',        # WooCommerce
+  'woocommerce-composite-products',           # Manos
+  'woocommerce-deposits',                     # WooCommerce
+  'woocommerce-dynamic-pricing',              # Lucas Stark
+  'woocommerce-follow-up-emails',             # WooCommerce
+  'woocommerce-gateway-stripe',               # WooCommerce
+  'woocommerce-give-products',                # WooCommerce
+  'woocommerce-gravityforms-product-addons',  # Lucas Stark
+  'woocommerce-name-your-price',              # WooCommerce
+  'woocommerce-one-page-checkout',            # Prospress
+  'woocommerce-order-delivery',               # Prospress
+  'woocommerce-pre-orders',                   # WooCommerce
+  'woocommerce-product-addons',               # WooCommerce
+  'woocommerce-product-bundles',              # Manos
+  'woocommerce-product-feeds',                # Lee Willis
+  'woocommerce-product-vendors',              # WooCommerce
+  'woocommerce-subscriptions',                # Prospress
+  'woocommerce-table-rate-shipping',          # WooCommerce
+  'woocommerce-eu-vat-number'                 # WooCommerce
+]
+wt_plugins.each do |plugin_name|
+  plugin_path = File.join('/projects/wp/woothemes/', plugin_name)
+  dest_path   = File.join('/srv/www/skyverge/public_html/wp-content/plugins/', plugin_name)
+  config.vm.synced_folder plugin_path, dest_path, type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+end
+
+# WooCOmmerce Subscriptions Gifting (Prospress)
+config.vm.synced_folder "/projects/wp/prospress/woocommerce-subscriptions-gifting", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-subscriptions-gifting", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+
+# =======================
+#  SKYVERGE FREE PLUGINS
+# =======================
+sv_free_wc_plugins = [
+  'woocommerce-custom-product-tabs-lite',
+  'woocommerce-customizer',
+  'woocommerce-dev-helper',
+  'woocommerce-extra-product-sorting-options',
+  'woocommerce-product-sku-generator',
+  'woocommerce-sequential-order-numbers'
+]
+sv_free_wc_plugins.each do |plugin_name|
+  plugin_path = File.join('/projects/wp/skyverge/', plugin_name)
+  dest_path   = File.join('/srv/www/skyverge/public_html/wp-content/plugins/', plugin_name)
+  config.vm.synced_folder plugin_path, dest_path, type: "nfs"
+end
+
+# Jilt for EDD
+config.vm.synced_folder "/projects/wp/skyverge/jilt-for-edd/src", "/srv/www/skyverge/public_html/wp-content/plugins/jilt-for-edd", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+  
+# Jilt for WooCommerce
+config.vm.synced_folder "/projects/wp/skyverge/jilt-for-woocommerce/src", "/srv/www/skyverge/public_html/wp-content/plugins/jilt-for-woocommerce", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# ShopFront (StoreFront child theme)
+config.vm.synced_folder "/projects/wp/skyverge/shopfront", "/srv/www/skyverge/public_html/wp-content/themes/shopfront", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+
+# ======================
+#  SKYVERGE MEMBERSHIPS
+# ======================
+
+# Memberships
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# WooCommerce Memberships Directory Shortcode
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships-addons/woocommerce-memberships-directory-shortcode/plugin", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships-directory-shortcode", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# WooCommerce Memberships for Teams
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships-addons/woocommerce-memberships-for-teams/plugin", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships-for-teams", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# WooCommerce Memberships MailChimp Sync
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships-addons/woocommerce-memberships-mailchimp/plugin", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships-mailchimp", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# WooCommerce Memberships Role Handler
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships-addons/woocommerce-memberships-role-handler/plugin", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships-role-handler", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+# WooCommerce Memberships Sensei Member Area
+config.vm.synced_folder "/projects/wp/skyverge/woocommerce-memberships-addons/woocommerce-memberships-sensei-member-area/plugin", "/srv/www/skyverge/public_html/wp-content/plugins/woocommerce-memberships-sensei-member-area", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
