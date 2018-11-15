@@ -1,11 +1,34 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby ts=2 sw=2 et:
-
+Vagrant.require_version ">= 2.1.4"
 require 'yaml'
+require 'fileutils'
+
+
+def virtualbox_version()
+    vboxmanage = Vagrant::Util::Which.which("VBoxManage") || Vagrant::Util::Which.which("VBoxManage.exe")
+    if vboxmanage != nil
+        s = Vagrant::Util::Subprocess.execute(vboxmanage, '--version')
+        return s.stdout.strip!
+    else
+        return nil
+    end
+end
 
 vagrant_dir = File.expand_path(File.dirname(__FILE__))
-
 show_logo = false
+branch_c = "\033[38;5;6m"#111m"
+red="\033[38;5;9m"#124m"
+green="\033[1;38;5;2m"#22m"
+blue="\033[38;5;4m"#33m"
+purple="\033[38;5;5m"#129m"
+docs="\033[0m"
+yellow="\033[38;5;3m"#136m"
+yellow_underlined="\033[4;38;5;3m"#136m"
+url=yellow_underlined
+creset="\033[0m"
+versionfile = File.open("#{vagrant_dir}/version", "r")
+version = versionfile.read
 
 # whitelist when we show the logo, else it'll show on global Vagrant commands
 if [ 'up', 'halt', 'resume', 'suspend', 'status', 'provision', 'reload' ].include? ARGV[0] then
@@ -15,35 +38,77 @@ if ENV['VVV_SKIP_LOGO'] then
   show_logo = false
 end
 if show_logo then
-  branch = `if [ -f #{vagrant_dir}/.git/HEAD ]; then git rev-parse --abbrev-ref HEAD; else echo 'novcs'; fi`
-  branch = branch.chomp("\n"); # remove trailing newline so it doesnt break the ascii art
-  red="\033[38;5;196m"
-  green="\033[38;5;118m"
-  blue="\033[38;5;33m"
-  purple="\033[38;5;129m"
+
+  platform = '' + Vagrant::Util::Platform.platform + ' '
+  if Vagrant::Util::Platform.windows? then
+    if Vagrant::Util::Platform.wsl? then
+      platform = platform + 'wsl '
+    end
+    if Vagrant::Util::Platform.msys? then
+      platform = platform + 'msys '
+    end
+    if Vagrant::Util::Platform.cygwin? then
+      platform = platform + 'cygwin '
+    end
+    if Vagrant::Util::Platform.windows_hyperv_enabled? then
+      platform = platform + 'HyperV-Enabled '
+    end
+    if Vagrant::Util::Platform.windows_hyperv_admin? then
+      platform = platform + 'HyperV-Admin '
+    end
+    if Vagrant::Util::Platform.windows_admin? then
+      platform = platform + 'HasWinAdminPriv '
+    end
+  else
+
+    if ENV['SHELL'] then
+      platform = platform + "shell:" + ENV['SHELL']
+    end
+    if Vagrant::Util::Platform.systemd? then
+      platform = platform + 'systemd '
+    end
+  end
+
+  if Vagrant::Util::Platform.fs_case_sensitive? then
+    platform = platform + 'CaseSensitiveFS '
+  end
+  if ! Vagrant::Util::Platform.terminal_supports_colors? then
+    platform = platform + 'NoColour '
+  end
+
+  git_or_zip = "zip-no-vcs"
+  branch = ''
+  if File.directory?("#{vagrant_dir}/.git") then
+    git_or_zip = "git::"
+    branch = `git --git-dir="#{vagrant_dir}/.git" --work-tree="#{vagrant_dir}" rev-parse --abbrev-ref HEAD`
+    branch = branch.chomp("\n"); # remove trailing newline so it doesnt break the ascii art
+  end
   stars = <<-STARS
 \033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;203m☆\033[0m\033[38;5;204m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;198m☆\033[0m\033[38;5;199m☆\033[0m\033[38;5;199m☆\033[0m\033[38;5;199m☆\033[0m\033[38;5;199m☆\033[0m\033[38;5;199m☆\033[0m\033[38;5;199m☆\033[0m
 STARS
   splash = <<-HEREDOC
-#{red}__   _#{green}__   #{blue}___   __
-#{red}\\ \\ / #{green}\\ \\ / #{blue}\\ \\ / / #{red}Varying #{green}Vagrant #{blue}Vagrants
-#{red} \\ \V /#{green} \\ \V /#{blue} \\ \V /  #{purple}v2.2.0-#{branch}
-#{red}  \\_/  #{green} \\_/   #{blue}\\_/   #{stars}
-\033[0mDocs:       https://varyingvagrantvagrants.org/
-\033[0mContribute: https://github.com/varying-vagrant-vagrants/vvv
-\033[0mDashboard:  http://vvv.test
-\033[0m
+\033[1;38;5;196m#{red}__ #{green}__ #{blue}__ __
+#{red}\\ V#{green}\\ V#{blue}\\ V / #{red}Varying #{green}Vagrant #{blue}Vagrants
+#{red} \\_/#{green}\\_/#{blue}\\_/  #{purple}v#{version}#{creset}-#{branch_c}#{git_or_zip}#{branch}
+
+#{yellow}Platform:   #{yellow}#{platform}
+#{green}Vagrant:    #{green}#{Vagrant::VERSION}
+#{blue}VirtualBox: #{blue}#{virtualbox_version()}
+
+#{docs}Docs:       #{url}https://varyingvagrantvagrants.org/
+#{docs}Contribute: #{url}https://github.com/varying-vagrant-vagrants/vvv
+#{docs}Dashboard:  #{url}http://vvv.test#{creset}
+
   HEREDOC
   puts splash
 end
 
-
-
-if File.file?(File.join(vagrant_dir, 'vvv-custom.yml')) then
-  vvv_config_file = File.join(vagrant_dir, 'vvv-custom.yml')
-else
-  vvv_config_file = File.join(vagrant_dir, 'vvv-config.yml')
+if File.file?(File.join(vagrant_dir, 'vvv-custom.yml')) == false then
+  puts "#{yellow}Copying #{red}vvv-config.yml#{yellow} to #{green}vvv-custom.yml#{yellow}\nIMPORTANT NOTE: Make all modifications to #{green}vvv-custom.yml#{yellow} in future so that they are not lost when VVV updates.#{creset}\n\n"
+  FileUtils.cp( File.join(vagrant_dir, 'vvv-config.yml'), File.join(vagrant_dir, 'vvv-custom.yml') )
 end
+
+vvv_config_file = File.join(vagrant_dir, 'vvv-custom.yml')
 
 vvv_config = YAML.load_file(vvv_config_file)
 
@@ -83,14 +148,15 @@ vvv_config['sites'].each do |site, args|
 
   vvv_config['sites'][site] = defaults.merge(args)
 
-  site_host_paths = Dir.glob(Array.new(4) {|i| vvv_config['sites'][site]['local_dir'] + '/*'*(i+1) + '/vvv-hosts'})
+  if ! vvv_config['sites'][site]['skip_provisioning'] then
+    site_host_paths = Dir.glob(Array.new(4) {|i| vvv_config['sites'][site]['local_dir'] + '/*'*(i+1) + '/vvv-hosts'})
+    vvv_config['sites'][site]['hosts'] += site_host_paths.map do |path|
+      lines = File.readlines(path).map(&:chomp)
+      lines.grep(/\A[^#]/)
+    end.flatten
 
-  vvv_config['sites'][site]['hosts'] += site_host_paths.map do |path|
-    lines = File.readlines(path).map(&:chomp)
-    lines.grep(/\A[^#]/)
-  end.flatten
-
-  vvv_config['hosts'] += vvv_config['sites'][site]['hosts']
+    vvv_config['hosts'] += vvv_config['sites'][site]['hosts']
+  end
   vvv_config['sites'][site].delete('hosts')
 end
 
@@ -109,6 +175,14 @@ else
   end
 end
 
+if ! vvv_config['dashboard']
+  vvv_config['dashboard'] = Hash.new
+end
+dashboard_defaults = Hash.new
+dashboard_defaults['repo'] = 'https://github.com/Varying-Vagrant-Vagrants/dashboard.git'
+dashboard_defaults['branch'] = 'master'
+vvv_config['dashboard'] = dashboard_defaults.merge(vvv_config['dashboard'])
+
 if ! vvv_config['utility-sources'].key?('core')
   vvv_config['utility-sources']['core'] = Hash.new
   vvv_config['utility-sources']['core']['repo'] = 'https://github.com/Varying-Vagrant-Vagrants/vvv-utilities.git'
@@ -126,8 +200,15 @@ end
 defaults = Hash.new
 defaults['memory'] = 2048
 defaults['cores'] = 1
+# This should rarely be overridden, so it's not included in the default vvv-config.yml file.
+defaults['private_network_ip'] = '192.168.88.4'
 
 vvv_config['vm_config'] = defaults.merge(vvv_config['vm_config'])
+
+if defined? vvv_config['vm_config']['provider'] then
+  # Override or set the vagrant provider.
+  ENV['VAGRANT_DEFAULT_PROVIDER'] = vvv_config['vm_config']['provider']
+end
 
 vvv_config['hosts'] = vvv_config['hosts'].uniq
 
@@ -143,9 +224,15 @@ Vagrant.configure("2") do |config|
     v.customize ["modifyvm", :id, "--cpus", vvv_config['vm_config']['cores']]
     v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
     v.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
+
+    # see https://github.com/hashicorp/vagrant/issues/7648
+    v.customize ['modifyvm', :id, '--cableconnected1', 'on']
+
     v.customize ["modifyvm", :id, "--rtcuseutc", "on"]
     v.customize ["modifyvm", :id, "--audio", "none"]
     v.customize ["modifyvm", :id, "--paravirtprovider", "kvm"]
+    v.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate//srv/www", "1"]
+    v.customize ["setextradata", :id, "VBoxInternal2/SharedFoldersEnableSymlinksCreate//srv/config", "1"]
 
     # Set the box name in VirtualBox to match the working directory.
     vvv_pwd = Dir.pwd
@@ -170,6 +257,8 @@ Vagrant.configure("2") do |config|
   config.vm.provider :hyperv do |v, override|
     v.memory = vvv_config['vm_config']['memory']
     v.cpus = vvv_config['vm_config']['cores']
+    v.enable_virtualization_extensions = true
+    v.linked_clone = true
   end
 
   # SSH Agent Forwarding
@@ -177,6 +266,12 @@ Vagrant.configure("2") do |config|
   # Enable agent forwarding on vagrant ssh commands. This allows you to use ssh keys
   # on your host machine inside the guest. See the manual for `ssh-add`.
   config.ssh.forward_agent = true
+
+  # SSH Key Insertion
+  #
+  # This is disabled, we had several contributors who ran into issues.
+  # See: https://github.com/Varying-Vagrant-Vagrants/VVV/issues/1551
+  config.ssh.insert_key = false
 
   # Default Ubuntu Box
   #
@@ -192,17 +287,17 @@ Vagrant.configure("2") do |config|
 
   # The VMware Fusion Provider uses a different naming scheme.
   config.vm.provider :vmware_fusion do |v, override|
-    override.vm.box = "netsensia/ubuntu-trusty64"
+    override.vm.box = "puphpet/ubuntu1404-x64"
   end
 
   # VMWare Workstation can use the same package as Fusion
   config.vm.provider :vmware_workstation do |v, override|
-    override.vm.box = "netsensia/ubuntu-trusty64"
+    override.vm.box = "puphpet/ubuntu1404-x64"
   end
 
   # Hyper-V uses a different base box.
   config.vm.provider :hyperv do |v, override|
-    override.vm.box = "phawxby/trusty64"
+    override.vm.box = "bento/ubuntu-14.04"
   end
 
   config.vm.hostname = "vvv"
@@ -237,7 +332,7 @@ Vagrant.configure("2") do |config|
   # should be changed. If more than one VM is running through VirtualBox, including other
   # Vagrant machines, different subnets should be used for each.
   #
-  config.vm.network :private_network, id: "vvv_primary", ip: "192.168.88.4"
+  config.vm.network :private_network, id: "vvv_primary", ip: vvv_config['vm_config']['private_network_ip']
 
   config.vm.provider :hyperv do |v, override|
     override.vm.network :private_network, id: "vvv_primary", ip: nil
@@ -288,19 +383,18 @@ Vagrant.configure("2") do |config|
   # we'll continue to map that directory as /var/lib/mysql inside the virtual machine. Once
   # this file is changed or removed, this mapping will no longer occur. A db_backup command
   # is now available inside the virtual machine to backup all databases for future use. This
-  # command is automatically issued on halt, suspend, and destroy if the vagrant-triggers
-  # plugin is installed.
+  # command is automatically issued on halt, suspend, and destroy
   if File.exists?(File.join(vagrant_dir,'database/data/mysql_upgrade_info')) then
-    if vagrant_version >= "1.3.0"
-      config.vm.synced_folder "database/data/", "/var/lib/mysql", :mount_options => [ "dmode=777", "fmode=777" ]
-    else
-      config.vm.synced_folder "database/data/", "/var/lib/mysql", :extra => 'dmode=777,fmode=777'
-    end
+    config.vm.synced_folder "database/data/", "/var/lib/mysql", :mount_options => [ "dmode=777", "fmode=777" ]
 
     # The Parallels Provider does not understand "dmode"/"fmode" in the "mount_options" as
     # those are specific to Virtualbox. The folder is therefore overridden with one that
     # uses corresponding Parallels mount options.
     config.vm.provider :parallels do |v, override|
+      override.vm.synced_folder "database/data/", "/var/lib/mysql", :mount_options => []
+    end
+    # Neither does the HyperV provider
+    config.vm.provider :hyperv do |v, override|
       override.vm.synced_folder "database/data/", "/var/lib/mysql", :mount_options => []
     end
   end
@@ -313,32 +407,26 @@ Vagrant.configure("2") do |config|
   # nginx as well as any pre-existing database files.
   config.vm.synced_folder "config/", "/srv/config"
 
-  # /srv/log/
+  # /var/log/
   #
   # If a log directory exists in the same directory as your Vagrantfile, a mapped
   # directory inside the VM will be created for some generated log files.
-  config.vm.synced_folder "log/", "/srv/log", :owner => "www-data"
+  config.vm.synced_folder "log/", "/var/log", :owner => "vagrant", :mount_options => [ "dmode=777", "fmode=777" ]
 
   # /srv/www/
   #
   # If a www directory exists in the same directory as your Vagrantfile, a mapped directory
   # inside the VM will be created that acts as the default location for nginx sites. Put all
   # of your project files here that you want to access through the web server
-  if vagrant_version >= "1.3.0"
-    config.vm.synced_folder "www/", "/srv/www/", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
-    # config.vm.synced_folder "www/", "/srv/www/", :owner => "www-data", :mount_options => [ "dmode=775", "fmode=774" ]
-  else
-    config.vm.synced_folder "www/", "/srv/www/", :owner => "www-data", :extra => 'dmode=775,fmode=774'
-  end
+
+   config.vm.synced_folder "www/", "/srv/www/", type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+
+   # config.vm.synced_folder "www/", "/srv/www", :owner => "www-data", :mount_options => [ "dmode=775", "fmode=774" ]
 
   vvv_config['sites'].each do |site, args|
     if args['local_dir'] != File.join(vagrant_dir, 'www', site) then
-      if vagrant_version >= "1.3.0"
-        config.vm.synced_folder args['local_dir'], args['vm_dir'], type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
-        #config.vm.synced_folder args['local_dir'], args['vm_dir'], :owner => "www-data", :mount_options => [ "dmode=775", "fmode=774" ]
-      else
-        config.vm.synced_folder args['local_dir'], args['vm_dir'], :owner => "www-data", :extra => 'dmode=775,fmode=774'
-      end
+      config.vm.synced_folder args['local_dir'], args['vm_dir'], type: "nfs", :mount_options => ['nolock,vers=3,udp,noatime']
+      # config.vm.synced_folder args['local_dir'], args['vm_dir'], :owner => "www-data", :mount_options => [ "dmode=775", "fmode=774" ]
     end
   end
 
@@ -351,7 +439,8 @@ Vagrant.configure("2") do |config|
   # those are specific to Virtualbox. The folder is therefore overridden with one that
   # uses corresponding Parallels mount options.
   config.vm.provider :parallels do |v, override|
-    override.vm.synced_folder "www/", "/srv/www/", :owner => "www-data", :mount_options => []
+    override.vm.synced_folder "www/", "/srv/www", :owner => "www-data", :mount_options => []
+    override.vm.synced_folder "log/", "/var/log", :owner => "vagrant", :mount_options => []
 
     vvv_config['sites'].each do |site, args|
       if args['local_dir'] != File.join(vagrant_dir, 'www', site) then
@@ -365,16 +454,11 @@ Vagrant.configure("2") do |config|
   # replaced with SMB shares. Here we switch all the shared folders to us SMB and then
   # override the www folder with options that make it Hyper-V compatible.
   config.vm.provider :hyperv do |v, override|
-    override.vm.synced_folder "www/", "/srv/www/", :owner => "www-data", :mount_options => ["dir_mode=0775","file_mode=0774","forceuid","noperm","nobrl","mfsymlinks"]
+    override.vm.synced_folder "www/", "/srv/www", :owner => "www-data", :mount_options => []
+    override.vm.synced_folder "log/", "/var/log", :owner => "vagrant", :mount_options => []
     vvv_config['sites'].each do |site, args|
       if args['local_dir'] != File.join(vagrant_dir, 'www', site) then
-        override.vm.synced_folder args['local_dir'], args['vm_dir'], :owner => "www-data", :mount_options => ["dir_mode=0775","file_mode=0774","forceuid","noperm","nobrl","mfsymlinks"]
-      end
-    end
-    # Change all the folder to use SMB instead of Virtual Box shares
-    override.vm.synced_folders.each do |id, options|
-      if ! options[:type]
-        options[:type] = "smb"
+        override.vm.synced_folder args['local_dir'], args['vm_dir'], :owner => "www-data", :mount_options => []
       end
     end
   end
@@ -423,6 +507,15 @@ Vagrant.configure("2") do |config|
     config.vm.provision "default", type: "shell", path: File.join( "provision", "provision.sh" )
   end
 
+  # Provision the dashboard that appears when you visit vvv.test
+  config.vm.provision "dashboard",
+      type: "shell",
+      path: File.join( "provision", "provision-dashboard.sh" ),
+      args: [
+        vvv_config['dashboard']['repo'],
+        vvv_config['dashboard']['branch']
+      ]
+
   vvv_config['utility-sources'].each do |name, args|
     config.vm.provision "utility-source-#{name}",
       type: "shell",
@@ -451,17 +544,19 @@ Vagrant.configure("2") do |config|
   end
 
   vvv_config['sites'].each do |site, args|
-    config.vm.provision "site-#{site}",
-      type: "shell",
-      path: File.join( "provision", "provision-site.sh" ),
-      args: [
-        site,
-        args['repo'].to_s,
-        args['branch'],
-        args['vm_dir'],
-        args['skip_provisioning'].to_s,
-        args['nginx_upstream']
-      ]
+    if args['skip_provisioning'] === false then
+      config.vm.provision "site-#{site}",
+        type: "shell",
+        path: File.join( "provision", "provision-site.sh" ),
+        args: [
+          site,
+          args['repo'].to_s,
+          args['branch'],
+          args['vm_dir'],
+          args['skip_provisioning'].to_s,
+          args['nginx_upstream']
+        ]
+    end
   end
 
 
@@ -482,31 +577,39 @@ Vagrant.configure("2") do |config|
 
   # Vagrant Triggers
   #
-  # If the vagrant-triggers plugin is installed, we can run various scripts on Vagrant
-  # state changes like `vagrant up`, `vagrant halt`, `vagrant suspend`, and `vagrant destroy`
+  # We run various scripts on Vagrant state changes like `vagrant up`, `vagrant halt`,
+  # `vagrant suspend`, and `vagrant destroy`
   #
   # These scripts are run on the host machine, so we use `vagrant ssh` to tunnel back
   # into the VM and execute things. By default, each of these scripts calls db_backup
   # to create backups of all current databases. This can be overridden with custom
   # scripting. See the individual files in config/homebin/ for details.
-  if defined? VagrantPlugins::Triggers
-    config.trigger.after :up, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_up'")
-    end
-    config.trigger.before :reload, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_halt'")
-    end
-    config.trigger.after :reload, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_up'")
-    end
-    config.trigger.before :halt, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_halt'")
-    end
-    config.trigger.before :suspend, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_suspend'")
-    end
-    config.trigger.before :destroy, :stdout => true do
-      system({'VVV_SKIP_LOGO'=> 'true'}, "vagrant ssh -c 'vagrant_destroy'")
-    end
+  config.trigger.after :up do |trigger|
+    trigger.name = "VVV Post-Up"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_up" }
+  end
+  config.trigger.before :reload do |trigger|
+    trigger.name = "VVV Pre-Reload"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_halt" }
+    trigger.on_error = :continue
+  end
+  config.trigger.after :reload do |trigger|
+    trigger.name = "VVV Post-Reload"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_up" }
+  end
+  config.trigger.before :halt do |trigger|
+    trigger.name = "VVV Pre-Halt"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_halt" }
+    trigger.on_error = :continue
+  end
+  config.trigger.before :suspend do |trigger|
+    trigger.name = "VVV Pre-Suspend"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_suspend" }
+    trigger.on_error = :continue
+  end
+  config.trigger.before :destroy do |trigger|
+    trigger.name = "VVV Pre-Destroy"
+    trigger.run_remote = { inline: "/vagrant/config/homebin/vagrant_destroy" }
+    trigger.on_error = :continue
   end
 end
